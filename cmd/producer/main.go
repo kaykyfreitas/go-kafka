@@ -7,10 +7,9 @@ import (
 )
 
 func main() {
-
 	deliveryChan := make(chan kafka.Event)
 	producer := NewKafkaProducer()
-	err := Publish("Hello, world from Go!", "test", producer, nil, deliveryChan)
+	err := Publish("Hello, world from Go!", "test", producer, []byte("hello"), deliveryChan)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
@@ -21,8 +20,12 @@ func main() {
 }
 
 func NewKafkaProducer() *kafka.Producer {
+	// docs for config: github.com/confluentinc/librdkafka/blob/master/CONFIGURATION.md
 	configMap := &kafka.ConfigMap{
-		"bootstrap.servers": "go-kafka-kafka-1:9092",
+		"bootstrap.servers":   "go-kafka-kafka-1:9092",
+		"delivery.timeout.ms": "0",    // can be: any time value in milliseconds
+		"acks":                "all",  // can be: "0", "1" or "all"
+		"enable.idempotence":  "true", // can be: "true" or "false" (for "true", acks must be "all")
 	}
 	producer, err := kafka.NewProducer(configMap)
 	if err != nil {
@@ -40,12 +43,10 @@ func Publish(msg string, topic string, producer *kafka.Producer, key []byte, del
 			Partition: kafka.PartitionAny,
 		},
 	}
-
 	err := producer.Produce(message, deliveryChan)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
