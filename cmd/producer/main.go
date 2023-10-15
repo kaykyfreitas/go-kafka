@@ -10,18 +10,12 @@ func main() {
 
 	deliveryChan := make(chan kafka.Event)
 	producer := NewKafkaProducer()
-	err := Publish("Hello, world!", "test", producer, nil, deliveryChan)
+	err := Publish("Hello, world from Go!", "test", producer, nil, deliveryChan)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	event := <-deliveryChan
-	msg := event.(*kafka.Message)
-	if msg.TopicPartition.Error != nil {
-		fmt.Println("error on message sending")
-	} else {
-		fmt.Println("message successfully sent: ", msg.TopicPartition)
-	}
+	go DeliveryReport(deliveryChan) // async
 
 	producer.Flush(1000)
 }
@@ -53,4 +47,19 @@ func Publish(msg string, topic string, producer *kafka.Producer, key []byte, del
 	}
 
 	return nil
+}
+
+func DeliveryReport(deliveryChan chan kafka.Event) {
+	for e := range deliveryChan {
+		switch event := e.(type) {
+		case *kafka.Message:
+			if event.TopicPartition.Error != nil {
+				fmt.Println("error on message sending")
+				// Develop a logic to retry message sent...
+			} else {
+				fmt.Println("message successfully sent: ", event.TopicPartition)
+				// Save message status into database for example...
+			}
+		}
+	}
 }
